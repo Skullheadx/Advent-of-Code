@@ -1,86 +1,49 @@
 const std = @import("std");
 const day2 = @import("day2");
 
-pub fn nextPowerOf10(n: u64) u64 {
-    if (n < 1) {
+fn isInvalid(str: []const u8, substr_len: u64) bool {
+    const substr = str[0..substr_len];
+    var i: u64 = 0;
+    while (i < str.len) {
+        if (i + substr_len > str.len) {
+            return false;
+        }
+        if (!std.mem.eql(u8, substr, str[i .. i + substr_len])) {
+            return false;
+        }
+        i += substr_len;
+    }
+    return true;
+}
+
+test "is invalid" {
+    try std.testing.expect(isInvalid("11", 1) == true);
+    try std.testing.expect(isInvalid("22", 1) == true);
+    try std.testing.expect(isInvalid("1010", 2) == true);
+    try std.testing.expect(isInvalid("1010", 1) == false);
+    try std.testing.expect(isInvalid("12341234", 1) == false);
+    try std.testing.expect(isInvalid("12341234", 2) == false);
+    try std.testing.expect(isInvalid("12341234", 3) == false);
+    try std.testing.expect(isInvalid("12341234", 4) == true);
+    try std.testing.expect(isInvalid("123123123", 1) == false);
+    try std.testing.expect(isInvalid("123123123", 2) == false);
+    try std.testing.expect(isInvalid("123123123", 3) == true);
+    try std.testing.expect(isInvalid("123123123", 4) == false);
+    try std.testing.expect(isInvalid("123123123", 5) == false);
+    try std.testing.expect(isInvalid("111", 1) == true);
+    try std.testing.expect(isInvalid("111", 2) == false);
+    try std.testing.expect(isInvalid("1212121212", 1) == false);
+    try std.testing.expect(isInvalid("1212121212", 2) == true);
+    try std.testing.expect(isInvalid("1212121212", 3) == false);
+    try std.testing.expect(isInvalid("1111111", 1) == true);
+    try std.testing.expect(isInvalid("1111111", 2) == false);
+}
+
+fn numDigits(x: u64) usize {
+    if (x == 0) {
         return 1;
     }
-
-    var x: u64 = 1;
-    while (x < n) {
-        x *= 10;
-    }
-    return x;
-}
-
-pub fn getLength(n: u64) u64 {
-    if (n < 10) {
-        return 1;
-    }
-
-    var x: u64 = 1;
-    var count: u64 = 1;
-    while (x <= n) {
-        x *= 10;
-        count += 1;
-        std.debug.print("{},{}\n", .{ x, count });
-    }
-    return count - 1;
-}
-
-fn isDouble(n: []const u8) bool {
-    const n_value: u64 = std.fmt.parseInt(u64, n, 10) catch {
-        std.debug.panic("invalid integer: '{s}'\n", .{n});
-    };
-    const n_len = n.len;
-    if (n.len % 2 != 0) {
-        return false;
-    }
-
-    const halfwayMult: u64 = std.math.pow(u64, 10, n_len / 2);
-
-    const firstHalf: u64 = @divFloor(n_value, halfwayMult);
-    const secondHalf: u64 = n_value - firstHalf * halfwayMult;
-
-    if (firstHalf == secondHalf) {
-        return true;
-    }
-    return false;
-}
-
-fn getNext(n: u64) u64 {
-    var n_len: u64 = getLength(n);
-    var n_val: u64 = n;
-    if (n_len % 2 != 0) {
-        n_val = nextPowerOf10(n);
-        n_len += 1;
-    }
-
-    const halfwayMult: u64 = std.math.pow(u64, 10, n_len / 2);
-
-    const firstHalf: u64 = @divFloor(n_val, halfwayMult);
-    const secondHalf: u64 = n_val - firstHalf * halfwayMult;
-
-    if (firstHalf > secondHalf) {
-        // raise second half
-        return firstHalf * halfwayMult + firstHalf;
-    } else {
-        // raise first half
-        const v: u64 = firstHalf + 1;
-        return v * std.math.pow(u64, 10, getLength(v)) + v;
-    }
-}
-
-test "getLength" {
-    try std.testing.expect(getLength(1) == 1);
-    try std.testing.expect(getLength(2) == 1);
-    try std.testing.expect(getLength(9) == 1);
-    try std.testing.expect(getLength(0) == 1);
-    try std.testing.expect(getLength(10) == 2);
-    try std.testing.expect(getLength(99) == 2);
-    try std.testing.expect(getLength(999) == 3);
-    try std.testing.expect(getLength(100) == 3);
-    try std.testing.expect(getLength(200) == 3);
+    return std.math.log10_int(x) + 1;
 }
 
 pub fn main() !void {
@@ -118,22 +81,22 @@ pub fn main() !void {
         };
 
         std.debug.print("start:{} end:{} | ", .{ start, end });
-        var val: u64 = start;
-        if (isDouble(startStr)) {
-            std.debug.print("{}, ", .{start});
-            invalid += start;
-        }
-
-        while (val < end) {
-            val = getNext(val);
-            if (val < end) {
-                invalid += val;
-                std.debug.print("{}, ", .{val});
+        for (start..end + 1) |i| {
+            // std.debug.print("i:{} | ", .{i});
+            for (1..@divTrunc(numDigits(i), 2) + 1) |j| {
+                // std.debug.print("j:{} ; ", .{j});
+                const str = try std.fmt.allocPrint(
+                    alloc,
+                    "{d}",
+                    .{i},
+                );
+                defer alloc.free(str);
+                if (isInvalid(str, j)) {
+                    invalid += i;
+                    std.debug.print("{}, ", .{i});
+                    break;
+                }
             }
-        }
-        if (isDouble(endStr)) {
-            std.debug.print("{}, ", .{end});
-            invalid += end;
         }
         std.debug.print("| invalid:{} \n", .{invalid});
     }
