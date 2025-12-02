@@ -13,10 +13,20 @@ pub fn nextPowerOf10(n: u64) u64 {
     return x;
 }
 
-// pub fn getLength(n: u64) u64 {
-//
-//
-// }
+pub fn getLength(n: u64) u64 {
+    if (n < 10) {
+        return 1;
+    }
+
+    var x: u64 = 1;
+    var count: u64 = 1;
+    while (x <= n) {
+        x *= 10;
+        count += 1;
+        std.debug.print("{},{}\n", .{ x, count });
+    }
+    return count - 1;
+}
 
 fn isDouble(n: []const u8) bool {
     const n_value: u64 = std.fmt.parseInt(u64, n, 10) catch {
@@ -37,29 +47,40 @@ fn isDouble(n: []const u8) bool {
     }
     return false;
 }
-fn getNext(n: []const u8) u64 {
-    var n_value = std.fmt.parseInt(u64, n, 10) catch {
-        std.debug.panic("invalid integer: '{s}'\n", .{n});
-    };
-    var n_len: u64 = n.len;
-    if (n.len % 2 != 0) {
-        n_value = nextPowerOf10(n_value);
+
+fn getNext(n: u64) u64 {
+    var n_len: u64 = getLength(n);
+    var n_val: u64 = n;
+    if (n_len % 2 != 0) {
+        n_val = nextPowerOf10(n);
         n_len += 1;
     }
 
     const halfwayMult: u64 = std.math.pow(u64, 10, n_len / 2);
 
-    const firstHalf: u64 = @divFloor(n_value, halfwayMult);
-    const secondHalf: u64 = n_value - firstHalf * halfwayMult;
+    const firstHalf: u64 = @divFloor(n_val, halfwayMult);
+    const secondHalf: u64 = n_val - firstHalf * halfwayMult;
 
     if (firstHalf > secondHalf) {
         // raise second half
         return firstHalf * halfwayMult + firstHalf;
     } else {
         // raise first half
-        const v: u64 = (firstHalf + 1);
-        return v * halfwayMult + v;
+        const v: u64 = firstHalf + 1;
+        return v * std.math.pow(u64, 10, getLength(v)) + v;
     }
+}
+
+test "getLength" {
+    try std.testing.expect(getLength(1) == 1);
+    try std.testing.expect(getLength(2) == 1);
+    try std.testing.expect(getLength(9) == 1);
+    try std.testing.expect(getLength(0) == 1);
+    try std.testing.expect(getLength(10) == 2);
+    try std.testing.expect(getLength(99) == 2);
+    try std.testing.expect(getLength(999) == 3);
+    try std.testing.expect(getLength(100) == 3);
+    try std.testing.expect(getLength(200) == 3);
 }
 
 pub fn main() !void {
@@ -70,7 +91,7 @@ pub fn main() !void {
 
     // Read contents from file "./filename"
     const cwd = std.fs.cwd();
-    const fileContents = try cwd.readFileAlloc(alloc, "day2_test.txt", 20000);
+    const fileContents = try cwd.readFileAlloc(alloc, "day2.txt", 20000);
     defer alloc.free(fileContents);
 
     // Print file contents
@@ -99,19 +120,19 @@ pub fn main() !void {
         std.debug.print("start:{} end:{} | ", .{ start, end });
         var val: u64 = start;
         if (isDouble(startStr)) {
+            std.debug.print("{}, ", .{start});
             invalid += start;
         }
 
         while (val < end) {
-            const valStr = try std.fmt.allocPrint(alloc, "{d}", .{val});
-            defer alloc.free(valStr); // Remember to free the allocated memory
-            val = getNext(valStr);
+            val = getNext(val);
             if (val < end) {
                 invalid += val;
                 std.debug.print("{}, ", .{val});
             }
         }
         if (isDouble(endStr)) {
+            std.debug.print("{}, ", .{end});
             invalid += end;
         }
         std.debug.print("| invalid:{} \n", .{invalid});
