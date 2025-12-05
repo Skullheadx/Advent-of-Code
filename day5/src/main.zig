@@ -6,6 +6,19 @@ const Range = struct {
     end: u64,
 };
 
+fn isFresh(ranges: *std.array_list.Aligned, value: u64) bool {
+    for (ranges.*.items) |r| {
+        if (r.start <= value and value <= r.end) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn lessThenByStart(_: void, a: Range, b: Range) bool {
+    return a.start < b.start; // ascending
+}
+
 pub fn main() !void {
     // Initiate allocator
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -41,20 +54,31 @@ pub fn main() !void {
         try fresh_ranges.append(alloc, Range{ .start = s, .end = e });
     }
 
-    while (lines.next()) |row| {
-        if (row.len == 0) {
-            break;
-        }
-        const value = try std.fmt.parseInt(u64, row, 10);
+    std.sort.block(Range, fresh_ranges.items, {}, lessThenByStart);
 
-        for (fresh_ranges.items) |r| {
-            if (r.start <= value and value <= r.end) {
-                std.debug.print("fresh: {} | ", .{value});
-                fresh += 1;
-                break;
-            }
+    var real_ranges = std.array_list.Aligned(Range, null).empty;
+    defer real_ranges.deinit(alloc);
+
+    const first_ele = fresh_ranges.items[0];
+    var current_start = first_ele.start;
+    var current_end = first_ele.end;
+    for (fresh_ranges.items) |fr| {
+        const start = fr.start;
+        const end = fr.end;
+        if (start <= current_end) {
+            current_end = @max(current_end, end);
+            continue;
+        } else {
+            try real_ranges.append(alloc, Range{ .start = current_start, .end = current_end });
+            current_end = end;
+            current_start = start;
         }
-        std.debug.print("{}\n", .{value});
+    }
+    try real_ranges.append(alloc, Range{ .start = current_start, .end = current_end });
+
+    for (real_ranges.items) |rr| {
+        std.debug.print("start:{}, end:{}\n", .{ rr.start, rr.end });
+        fresh += rr.end - rr.start + 1;
     }
 
     std.debug.print("fresh: {}\n", .{fresh});
