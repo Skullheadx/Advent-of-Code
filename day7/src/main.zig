@@ -19,7 +19,7 @@ pub fn main() !void {
     const firstLine = lines.first();
     const startPos = std.mem.indexOf(u8, firstLine, "S") orelse unreachable;
 
-    var positions = try std.array_list.Aligned(u32, null).initCapacity(alloc, firstLine.len);
+    var positions = try std.array_list.Aligned(u64, null).initCapacity(alloc, firstLine.len);
     defer positions.deinit(alloc);
 
     try positions.resize(alloc, firstLine.len);
@@ -27,27 +27,25 @@ pub fn main() !void {
 
     positions.items[startPos] = 1;
 
-    var final_result: u64 = 0;
     while (lines.next()) |line| {
         for (line, 0..) |value, i| {
-            if (value == '^') {
-                if (positions.items[i] > 0) {
-                    // do left
-                    if (positions.items[i - 1] == 0) {
-                        positions.items[i - 1] = 1;
-                    }
-                    // right
-                    if (positions.items[i + 1] == 0) {
-                        positions.items[i + 1] = 1;
-                    }
+            const position_value = positions.items[i];
+            if (value == '^' and position_value > 0) {
+                // do left
+                positions.items[i - 1] += position_value;
+                // right
+                positions.items[i + 1] += position_value;
 
-                    positions.items[i] = 0;
-                    final_result += 1;
-                }
+                positions.items[i] -= position_value;
             }
         }
+        std.debug.print("{}\n", .{positions});
     }
 
+    var final_result: u64 = 0;
+    for (positions.items) |i| {
+        final_result += i;
+    }
     std.debug.print("result: {}\n", .{final_result});
     try day7.bufferedPrint();
 }
